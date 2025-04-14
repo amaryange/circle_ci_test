@@ -10,7 +10,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          version: 25.0.3  # Utiliser une version plus récente
+          version: 20.10.24  # Utiliser une version plus récente
       - run:
           name: Build and Push Docker image
           command: |
