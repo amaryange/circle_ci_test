@@ -11,16 +11,6 @@ jobs:
       - checkout
       - setup_remote_docker:
           version: 20.10.24  # Utiliser une version plus récente
-
-      - run:
-          name: Autoriser Harbor en HTTP (insecure registry)
-          command: |
-            # Créer le fichier de config Docker avec le registry insecure
-            echo '{ "insecure-registries":["'"$HARBOR_URL"'"] }' | sudo tee /etc/docker/daemon.json
-            
-            # Redémarrer Docker pour appliquer la config
-            sudo systemctl restart docker || sudo service docker restart    
-
       - run:
           name: Build and Push Docker image
           command: |
