@@ -35,42 +35,22 @@ jobs:
       - run:
           name: Deploy to server
           command: |
-            # Préparer les variables que nous allons passer au serveur
-            echo "HARBOR_URL=$HARBOR_URL" > deploy_vars
-            echo "HARBOR_USERNAME=$HARBOR_USERNAME" >> deploy_vars
-            echo "HARBOR_PASSWORD=$HARBOR_PASSWORD" >> deploy_vars
+            # Envoyer un script au serveur avec toutes les variables interpolées
+            cat > deploy.sh << EOF
+            #!/bin/bash
+            echo '$HARBOR_PASSWORD' | docker login $HARBOR_URL -u '$HARBOR_USERNAME' --password-stdin
+            docker pull $HARBOR_URL/circle_ci/app:latest
+            docker stop nextjs_app || true
+            docker rm nextjs_app || true
+            docker run -d --name nextjs_app -p 3001:3001 --restart unless-stopped $HARBOR_URL/circle_ci/app:latest
+            docker image prune -a -f --filter 'until=24h'
+            EOF
             
-            # Transférer les variables au serveur
-            scp -o StrictHostKeyChecking=no deploy_vars $SSH_USER@$SSH_HOST:/tmp/deploy_vars
+            # Envoyer le script au serveur
+            scp -o StrictHostKeyChecking=no deploy.sh $SSH_USER@$SSH_HOST:/tmp/deploy.sh
             
-            # Exécuter le déploiement avec les variables disponibles
-            ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << 'ENDSSH'
-              # Charger les variables
-              source /tmp/deploy_vars
-            
-              # Connexion à Harbor
-              echo "$HARBOR_PASSWORD" | docker login $HARBOR_URL -u $HARBOR_USERNAME --password-stdin
-            
-              # Récupérer la dernière image
-              docker pull $HARBOR_URL/circle_ci/app:latest
-            
-              # Arrêter et supprimer le conteneur existant s'il existe
-              docker stop nextjs_app || true
-              docker rm nextjs_app || true
-            
-              # Lancer le nouveau conteneur
-              docker run -d \
-                --name nextjs_app \
-                -p 3001:3001 \
-                --restart unless-stopped \
-                $HARBOR_URL/circle_ci/app:latest
-            
-              # Nettoyer les fichiers temporaires
-              rm /tmp/deploy_vars
-            
-              # Nettoyer les anciennes images
-              docker image prune -a -f --filter "until=24h"
-            ENDSSH
+            # Exécuter le script
+            ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "chmod +x /tmp/deploy.sh && /tmp/deploy.sh && rm /tmp/deploy.sh"
 
 workflows:
   version: 2
