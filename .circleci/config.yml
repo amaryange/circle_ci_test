@@ -35,7 +35,7 @@ jobs:
       - run:
           name: Deploy to server
           command: |
-            ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << 'ENDSSH'
+            ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \<< 'ENDSSH'
               # Connexion à Harbor
               echo "$HARBOR_PASSWORD" | docker login $HARBOR_URL -u $HARBOR_USERNAME --password-stdin
 
