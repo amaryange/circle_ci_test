@@ -1,0 +1,75 @@
+version: 2.1
+
+# Spécifiez le context à utiliser
+context: test
+
+jobs:
+  build-and-push:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 25.0.3  # Utiliser une version plus récente
+      - run:
+          name: Build and Push Docker image
+          command: |
+            # Build Docker image
+            docker build -t $HARBOR_URL/circle_ci/app:$CIRCLE_SHA1 .
+            docker tag $HARBOR_URL/circle_ci/app:$CIRCLE_SHA1 $HARBOR_URL/circle_ci/app:latest
+
+            # Login to Harbor
+            echo "$HARBOR_PASSWORD" | docker login $HARBOR_URL -u $HARBOR_USERNAME --password-stdin
+
+            # Push Docker image to Harbor
+            docker push $HARBOR_URL/circle_ci/app:$CIRCLE_SHA1
+            docker push $HARBOR_URL/circle_ci/app:latest
+
+  deploy:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            - "SHA256:90L7RxlJraxJkSr/Ww7k7Zh+En8o+kwkzV6oQctlxyA" # Remplacer par votre empreinte
+      - run:
+          name: Deploy to server
+          command: |
+            ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << 'ENDSSH'
+              # Connexion à Harbor
+              echo "$HARBOR_PASSWORD" | docker login $HARBOR_URL -u $HARBOR_USERNAME --password-stdin
+
+              # Récupérer la dernière image
+              docker pull $HARBOR_URL/circle_ci/app:latest
+
+              # Arrêter et supprimer le conteneur existant s'il existe
+              docker stop nextjs_app || true
+              docker rm nextjs_app || true
+
+              # Lancer le nouveau conteneur
+              docker run -d \
+                --name nextjs_app \
+                -p 3001:3001 \
+                --restart unless-stopped \
+                $HARBOR_URL/circle_ci/app:latest
+
+              # Nettoyer les anciennes images
+              docker image prune -a -f --filter "until=24h"
+            ENDSSH
+
+workflows:
+  version: 2
+  ci-cd-pipeline:
+    jobs:
+      - build-and-push:
+          context: test  # Spécifiez le context ici
+          filters:
+            branches:
+              only: main
+      - deploy:
+          context: test  # Spécifiez le context ici
+          requires:
+            - build-and-push
+          filters:
+            branches:
+              only: main
