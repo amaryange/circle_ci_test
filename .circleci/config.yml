@@ -36,17 +36,15 @@ jobs:
           name: Deploy to server
           command: |
             # Créer le script sans utiliser de heredoc
-            cat << 'EOF' > deploy.sh
-            #!/bin/bash
-            echo "$HARBOR_PASSWORD" | docker login $HARBOR_URL -u "$HARBOR_USERNAME" --password-stdin
-            docker pull $HARBOR_URL/circle_ci/app:latest
-            if [ "$(docker ps -aq -f name=nextjs_app)" ]; then
-              docker stop nextjs_app
-              docker rm nextjs_app
-            fi
-            docker run -d --name nextjs_app -p 3001:3001 --restart unless-stopped $HARBOR_URL/circle_ci/app:latest
-            docker image prune -a -f --filter 'until=24h'
-            EOF
+            echo '#!/bin/bash' > deploy.sh
+            echo 'echo "$HARBOR_PASSWORD" | docker login $HARBOR_URL -u "$HARBOR_USERNAME" --password-stdin' >> deploy.sh
+            echo 'docker pull $HARBOR_URL/circle_ci/app:latest' >> deploy.sh
+            echo 'if [ "$(docker ps -aq -f name=nextjs_app)" ]; then' >> deploy.sh
+            echo '  docker stop nextjs_app' >> deploy.sh
+            echo '  docker rm nextjs_app' >> deploy.sh
+            echo 'fi' >> deploy.sh
+            echo 'docker run -d --name nextjs_app -p 3001:3001 --restart unless-stopped $HARBOR_URL/circle_ci/app:latest' >> deploy.sh
+            echo 'docker image prune -a -f --filter "until=24h"' >> deploy.sh
 
             # Envoyer le script au serveur
             scp -o StrictHostKeyChecking=no deploy.sh $SSH_USER@$SSH_HOST:/tmp/deploy.sh
