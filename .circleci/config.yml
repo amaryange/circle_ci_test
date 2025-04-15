@@ -1,7 +1,8 @@
 version: 2.1
 
 # Spécifiez le context à utiliser
-context: test
+context:
+  - test
 
 jobs:
   build-and-push:
