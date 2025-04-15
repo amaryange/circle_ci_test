@@ -1,8 +1,22 @@
 version: 2.1
 
-# Spécifiez le context à utiliser
-context:
-  - test
+workflows:
+  ci-cd-pipeline:
+    jobs:
+      - build-and-push:
+          context:
+            - test  # Spécifiez le context ici
+          filters:
+            branches:
+              only: main
+      - deploy:
+          context:
+            - test  # Spécifiez le context ici
+          requires:
+            - build-and-push
+          filters:
+            branches:
+              only: main
 
 jobs:
   build-and-push:
@@ -52,20 +66,3 @@ jobs:
 
             # Exécuter le script
             ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "chmod +x /tmp/deploy.sh && /tmp/deploy.sh && rm /tmp/deploy.sh"
-
-workflows:
-  version: 2
-  ci-cd-pipeline:
-    jobs:
-      - build-and-push:
-          context: test  # Spécifiez le context ici
-          filters:
-            branches:
-              only: main
-      - deploy:
-          context: test  # Spécifiez le context ici
-          requires:
-            - build-and-push
-          filters:
-            branches:
-              only: main
